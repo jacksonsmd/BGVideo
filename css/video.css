@@ -1,12 +1,4 @@
-.bg-video-container {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-}
-
-.bg-video {
+[data-bg-video="true"] {
 	background: #000;
 	position: absolute;
 	overflow: hidden;
@@ -16,11 +8,10 @@
 	bottom: 0;
 }
 
-.bg-video video {
+[data-bg-video="true"] video {
 	position: absolute;
 }
 
-.bg-video.touch-poster {
-	background-size: cover;
-	background-position: 50% 50%;
+.touch-poster .video{
+	display: none;
 }
