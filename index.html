@@ -8,12 +8,13 @@
 </head>
 <body>
 	<div id="wrapper">
-		<div class="bg-video-container">
-			<div class="bg-video" 
-				data-sources="media/video.mp4; media/video.ogv; media/video.webm"
-				data-poster="images/poster.jpg"
-				data-width="1920" 
-				data-height="1080">
+		<div data-bg-video="true" data-poster="images/poster.jpg" data-width="1920" data-height="1080">
+			<div class="video">
+				<video>
+					<source src="media/video.mp4"  type="video/mp4" />
+					<source src="media/video.ogg"  type="video/ogg" />
+					<source src="media/video.webm" type="video/webm" />
+				</video>
 			</div>
 		</div>
 	</div>
