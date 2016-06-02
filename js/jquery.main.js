@@ -5,55 +5,58 @@ jQuery(function(){
 
 // init bg video
 function initBGVideo() {
-	jQuery('.bg-video').bgVideo();
+	jQuery('[data-bg-video="true"]').bgVideo();
 }
 
 /*
- * jQuery bg video plugin
+ * jQuery BG Video Plugin
  */
 ;(function($) {
 	'use strict';
 
-	var win = $(window),
-		isTouchDevice = ('ontouchstart' in window) || window.DocumentTouch && document instanceof window.DocumentTouch || /Windows Phone/.test(navigator.userAgent);
+	var $win = $(window);
 
-	function BGVideo(options) {
-		this.options = $.extend({
-			autoplay: true,
-			loop: true,
-			sources: null,
-			poster: null,
-			muted: true, 
-			size: { height: 1080, width: 1920 },
-			touchClasses: 'touch-poster',
-			onInit: function() {},
-			onPlay: function() {},
-			onPause: function() {},
-			onEnded: function() {},
-			onCreatedVideo: function() {},
-			onCreatedPoster: function() {}
-		}, options);
+	var BGVideo = function(options) {
+		this.options = $.extend({}, BGVideo.DEFAULTS, options);
 		this.init();
-	}
+	};
+
+	var	isTouchDevice = ('ontouchstart' in window) || window.DocumentTouch && document instanceof window.DocumentTouch || /Windows Phone/.test(navigator.userAgent);
+
+	BGVideo.DEFAULTS = {
+		videoHolder: '.video',
+		video: 'video',
+		autoplay: true,
+		loop: true,
+		poster: null,
+		muted: true, 
+		touchClasses: 'touch-poster',
+		onInit: function() {},
+		onPlay: function() {},
+		onPause: function() {},
+		onEnded: function() {},
+		onCreatedPoster: function() {}
+	};
 
 	BGVideo.prototype = {
 		init: function() {
 			if (this.options.holder) {
 				this.initStructure();
+				if (isTouchDevice) {
+					this.createPoster();
+					this.removeVideo();
+				} else {
+					this.createVideoAPI();
+					this.attachEvents();
+				}
 				this.makeCallback('onInit', this);
 			}
 		},
 		initStructure: function() {
 			this.holder = $(this.options.holder);
-			this.sources = this.holder.data('sources') || this.options.sources;
-			this.sourcesArray = this.sources.split(';');
-			if (isTouchDevice) {
-				this.createPoster();
-			} else {
-				this.createVideo();
-				this.createVideoAPI();
-				this.attachEvents();
-			}
+			this.videoHolder = this.holder.find(this.options.videoHolder);
+			this.video = this.videoHolder.find(this.options.video);
+			this.ratio = this.holder.data('width') / this.holder.data('height');
 		},
 		attachEvents: function() {
 			var self = this;
@@ -73,25 +76,16 @@ function initBGVideo() {
 			this.windowResize();
 			this.holder.on('play.video', this.onPlayVideo);
 			this.holder.on('pause.video', this.onPauseVideo);
-			win.on('load resize orientationchange',  this.onWindowResize);
+			$win.on('load resize orientationchange',  this.onWindowResize);
 		},
 		createPoster: function() {
 			this.poster = this.holder.data('poster') || this.options.poster;
-			this.holder.addClass(this.options.touchClasses).css('background-image', 'url(' + this.poster + ')');
-			this.makeCallback('onCreatedPoster', this);
-		},
-		createVideo: function() {
-			var self = this;
-
-			this.video = $('<video>');
-			$.each(this.sourcesArray, function(index, src) {
-				$('<source>').attr({
-					src: $.trim(src),
-					type: 'video/' + self.getVideoType(src) + ''
-				}).appendTo(self.video);
+			this.holder.addClass(this.options.touchClasses).css({
+				backgroundImage: 'url(' + this.poster + ')',
+				backgroundPosition: '50% 50%',
+				backgroundSize: 'cover'
 			});
-			this.video.appendTo(this.holder);
-			this.makeCallback('onCreatedVideo', this);
+			this.makeCallback('onCreatedPoster', this);
 		},
 		createVideoAPI: function() {
 			var self = this;
@@ -135,59 +129,52 @@ function initBGVideo() {
 		pauseVideo: function() {
 			this.api.pause();
 		},
-		getVideoType: function(str) {
-			var index = str.lastIndexOf('.');
-
-			str = str.slice(index + 1);
-			str = str.replace(/ogv/, 'ogg');
-
-			return str;
-		},
-		getRatio: function() {
-			return (this.holder.data('width') || this.options.size.width) / (this.holder.data('height') || this.options.size.height);
-		},
-		getDimensions: function(data) {
-			var ratio = data.ratio,
-				slideWidth = data.width,
-				slideHeight = slideWidth / ratio;
-
-			if(slideHeight < data.height) {
-				slideHeight = data.height;
-				slideWidth = slideHeight * ratio;
-			}
-
-			return {
-				width: slideWidth,
-				height: slideHeight,
-				top: (data.height - slideHeight) / 2,
-				left: (data.width - slideWidth) / 2
-			};
-		},
-		videoResize: function() {
+		resizeVideo: function() {
 			var styles = this.getDimensions({
-				ratio: this.getRatio(),
-				width: this.holder.width(),
-				height: this.holder.height()
+				videoRatio: this.ratio,
+				maskWidth: this.holder.outerWidth(),
+				maskHeight: this.holder.outerHeight()
 			});
 
 			this.video.css({
 				width: styles.width,
 				height: styles.height,
-				top: styles.top,
-				left: styles.left
+				marginTop: styles.top,
+				marginLeft: styles.left
 			});
 		},
-		windowResize: function() {
-			this.videoResize();
+		getDimensions: function(data) {
+			var ratio = data.videoRatio,
+				slideWidth = data.maskWidth,
+				slideHeight = slideWidth / ratio;
+
+			if (slideHeight < data.maskHeight) {
+				slideHeight = data.maskHeight;
+				slideWidth = slideHeight * ratio;
+			}
+			return {
+				width: slideWidth,
+				height: slideHeight,
+				top: (data.maskHeight - slideHeight) / 2,
+				left: (data.maskWidth - slideWidth) / 2
+			};
 		},
-		destroy: function() {
+		getWindowHeight: function() {
+			return window.innerHeight || document.documentElement.clientHeight;
+		},
+		removeVideo: function() {
 			if (this.video.length) {
 				this.video.css({ width: '', height: '', top: '', left: '' });
 				this.video.detach();
 			}
+		},
+		windowResize: function() {
+			this.resizeVideo();
+		},
+		destroy: function() {
 			this.holder.off('play.video', this.onPlayVideo);
 			this.holder.off('pause.video', this.onPauseVideo);
-			win.off('load resize orientationchange',  this.onWindowResize);
+			$win.off('load resize orientationchange',  this.onWindowResize);
 		},
 		makeCallback: function(name) {
 			if (typeof this.options[name] === 'function') {
